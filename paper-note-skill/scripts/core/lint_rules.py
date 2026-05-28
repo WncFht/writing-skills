@@ -1,27 +1,34 @@
-#!/usr/bin/env python3
 from __future__ import annotations
 
-import argparse
 import re
-from dataclasses import dataclass
 from pathlib import Path
 
-PREAMBLE_FILE_NAME = "paper_note_annotations.tex"
+from core.lint_parse import (
+    contains_non_ascii,
+    find_annsummary_ranges,
+    find_bare_math_macros,
+    find_unmatched_dollars,
+    line_number_at,
+    parse_braced_group,
+    parse_command_calls,
+    parse_first_optional_arg,
+    strip_comments,
+    strip_tex_commands,
+)
+from core.models import LintIssue, LintResult
+from core.workspace import (
+    GENERATED_ENTRY_FILE_NAMES,
+    PREAMBLE_FILE_NAME,
+    STALE_GENERATED_DIR_NAMES,
+)
+
 NOTE_COMMAND_NAME = "pnote"
 LEGACY_GENERATED_DIR_NAMES = ("paper_note_zh",)
-GENERATED_ENTRY_FILE_NAMES = {
-    "paper_note_bilingual.tex",
-    "paper_note_english.tex",
-    "paper_note_english_clean.tex",
-    "paper_note_chinese.tex",
-}
 BIBLIOGRAPHY_LIKE_RE = re.compile(
     r"\\begin\{thebibliography\}|\\bibliography\s*\{|\\bibliographystyle\s*\{|\\printbibliography\b"
 )
 LEGACY_NOTE_COMMAND_RE = re.compile(r"\\annnote(?=\s*\{)")
 TYPO_NOTE_COMMAND_RE = re.compile(r"\\annote(?=\s*\{)")
-BEGIN_ANNSUMMARY_RE = re.compile(r"\\begin\{annsummary\}")
-END_ANNSUMMARY_RE = re.compile(r"\\end\{annsummary\}")
 SENTENCE_MACRO_NAMES = (
     "bgsent",
     "gapsent",
@@ -64,301 +71,6 @@ SAFE_HEADING_MACROS = {
     "paragraph": "bipara",
     "subparagraph": "bisubpara",
 }
-MATH_MACRO_NAMES = {
-    "alpha",
-    "beta",
-    "gamma",
-    "delta",
-    "epsilon",
-    "varepsilon",
-    "zeta",
-    "eta",
-    "theta",
-    "vartheta",
-    "iota",
-    "kappa",
-    "lambda",
-    "mu",
-    "nu",
-    "xi",
-    "pi",
-    "varpi",
-    "rho",
-    "varrho",
-    "sigma",
-    "varsigma",
-    "tau",
-    "upsilon",
-    "phi",
-    "varphi",
-    "chi",
-    "psi",
-    "omega",
-    "Gamma",
-    "Delta",
-    "Theta",
-    "Lambda",
-    "Xi",
-    "Pi",
-    "Sigma",
-    "Upsilon",
-    "Phi",
-    "Psi",
-    "Omega",
-    "bm",
-    "boldsymbol",
-    "mathbb",
-    "mathbf",
-    "mathcal",
-    "mathrm",
-    "mathit",
-    "mathsf",
-    "mathtt",
-    "operatorname",
-    "frac",
-    "dfrac",
-    "tfrac",
-    "sqrt",
-    "sum",
-    "prod",
-    "int",
-    "oint",
-    "lim",
-    "min",
-    "max",
-    "argmin",
-    "argmax",
-    "exp",
-    "log",
-    "ln",
-    "sin",
-    "cos",
-    "tan",
-    "left",
-    "right",
-    "cdot",
-    "times",
-    "otimes",
-    "oplus",
-    "leq",
-    "geq",
-    "neq",
-    "approx",
-    "infty",
-    "partial",
-    "nabla",
-    "forall",
-    "exists",
-    "in",
-    "notin",
-}
-
-
-@dataclass(frozen=True)
-class LintIssue:
-    path: Path
-    line: int
-    kind: str
-    message: str
-
-
-@dataclass(frozen=True)
-class CommandCall:
-    name: str
-    line: int
-    args: tuple[str, ...]
-
-
-def line_number_at(text: str, offset: int) -> int:
-    return text.count("\n", 0, offset) + 1
-
-
-def strip_comments(text: str) -> str:
-    stripped_lines: list[str] = []
-    for raw_line in text.splitlines(keepends=True):
-        line: list[str] = []
-        index = 0
-        while index < len(raw_line):
-            char = raw_line[index]
-            if char == "%" and (index == 0 or raw_line[index - 1] != "\\"):
-                if raw_line.endswith("\n"):
-                    line.append("\n")
-                break
-            line.append(char)
-            index += 1
-        else:
-            stripped_lines.append("".join(line))
-            continue
-        stripped_lines.append("".join(line))
-    return "".join(stripped_lines)
-
-
-def parse_braced_group(text: str, start: int) -> tuple[str, int] | None:
-    index = start
-    while index < len(text) and text[index].isspace():
-        index += 1
-    if index >= len(text) or text[index] != "{":
-        return None
-
-    depth = 0
-    group_start = index + 1
-    cursor = index
-    while cursor < len(text):
-        char = text[cursor]
-        if char == "\\":
-            cursor += 2
-            continue
-        if char == "{":
-            depth += 1
-        elif char == "}":
-            depth -= 1
-            if depth == 0:
-                return text[group_start:cursor], cursor + 1
-        cursor += 1
-    return None
-
-
-def parse_command_calls(
-    text: str, command_name: str, min_arg_count: int, max_arg_count: int
-) -> list[CommandCall]:
-    pattern = re.compile(rf"\\{re.escape(command_name)}(?=\s*\{{)")
-    calls: list[CommandCall] = []
-    for match in pattern.finditer(text):
-        args: list[str] = []
-        cursor = match.end()
-        for _ in range(max_arg_count):
-            parsed = parse_braced_group(text, cursor)
-            if parsed is None:
-                break
-            value, cursor = parsed
-            args.append(value)
-        if min_arg_count <= len(args) <= max_arg_count:
-            calls.append(
-                CommandCall(
-                    name=command_name,
-                    line=line_number_at(text, match.start()),
-                    args=tuple(args),
-                )
-            )
-    return calls
-
-
-def find_annsummary_ranges(text: str) -> tuple[list[tuple[int, int, int]], list[int]]:
-    token_re = re.compile(r"\\begin\{annsummary\}|\\end\{annsummary\}")
-    stack: list[tuple[int, int]] = []
-    ranges: list[tuple[int, int, int]] = []
-    unmatched_begin_lines: list[int] = []
-    for match in token_re.finditer(text):
-        token = match.group(0)
-        line = line_number_at(text, match.start())
-        if token.startswith(r"\begin"):
-            stack.append((match.end(), line))
-            continue
-        if stack:
-            body_start, begin_line = stack.pop()
-            ranges.append((body_start, match.start(), begin_line))
-        else:
-            unmatched_begin_lines.append(line)
-    for _, begin_line in stack:
-        unmatched_begin_lines.append(begin_line)
-    return ranges, unmatched_begin_lines
-
-
-def find_unmatched_dollars(text: str) -> list[int]:
-    stack: list[tuple[str, int]] = []
-    index = 0
-    while index < len(text):
-        char = text[index]
-        if char == "\\":
-            index += 2
-            continue
-        if char == "$":
-            if index + 1 < len(text) and text[index + 1] == "$":
-                kind = "$$"
-                if stack and stack[-1][0] == kind:
-                    stack.pop()
-                else:
-                    stack.append((kind, line_number_at(text, index)))
-                index += 2
-                continue
-            kind = "$"
-            if stack and stack[-1][0] == kind:
-                stack.pop()
-            else:
-                stack.append((kind, line_number_at(text, index)))
-        index += 1
-    return [line for _, line in stack]
-
-
-def find_bare_math_macros(segment: str, base_line: int) -> list[tuple[int, str]]:
-    issues: list[tuple[int, str]] = []
-    math_stack: list[str] = []
-    index = 0
-    while index < len(segment):
-        char = segment[index]
-        if char == "\\":
-            if index + 1 >= len(segment):
-                break
-            next_char = segment[index + 1]
-            if next_char.isalpha():
-                cursor = index + 1
-                while cursor < len(segment) and segment[cursor].isalpha():
-                    cursor += 1
-                command_name = segment[index + 1 : cursor]
-                if not math_stack and command_name in MATH_MACRO_NAMES:
-                    line = base_line + segment.count("\n", 0, index)
-                    issues.append((line, command_name))
-                index = cursor
-                continue
-            index += 2
-            continue
-        if char == "$":
-            if index + 1 < len(segment) and segment[index + 1] == "$":
-                if math_stack and math_stack[-1] == "$$":
-                    math_stack.pop()
-                else:
-                    math_stack.append("$$")
-                index += 2
-                continue
-            if math_stack and math_stack[-1] == "$":
-                math_stack.pop()
-            else:
-                math_stack.append("$")
-        index += 1
-    return issues
-
-
-def contains_non_ascii(text: str) -> bool:
-    return any(ord(char) > 127 for char in text)
-
-
-def strip_tex_commands(text: str) -> str:
-    return re.sub(r"\\[A-Za-z@]+|\\.", "", text)
-
-
-def parse_first_optional_arg(text: str, start: int) -> tuple[str, int] | None:
-    index = start
-    while index < len(text) and text[index].isspace():
-        index += 1
-    if index >= len(text) or text[index] != "[":
-        return None
-
-    depth = 0
-    group_start = index + 1
-    cursor = index
-    while cursor < len(text):
-        char = text[cursor]
-        if char == "\\":
-            cursor += 2
-            continue
-        if char == "[":
-            depth += 1
-        elif char == "]":
-            depth -= 1
-            if depth == 0:
-                return text[group_start:cursor], cursor + 1
-        cursor += 1
-    return None
 
 
 def lint_moving_arguments(path: Path, text: str) -> list[LintIssue]:
@@ -389,7 +101,7 @@ def lint_moving_arguments(path: Path, text: str) -> list[LintIssue]:
                         line=line,
                         kind="unsafe-bititle-moving-argument",
                         message=(
-                            rf"检测到 \{command_name}{{\\bititle{{...}}{{...}}}}；"
+                            rf"检测到 \{command_name}{{\bititle{{...}}{{...}}}}；"
                             r"在 pdflatex + CJKutf8 下容易把中文写进 .aux / 书签并触发 Unicode fatal。"
                             rf" 请改用安全宏，例如 \{safe_macro_name}{{English}}{{中文}}。"
                         ),
@@ -410,11 +122,7 @@ def lint_moving_arguments(path: Path, text: str) -> list[LintIssue]:
                     )
                 )
 
-            if (
-                command_name != "title"
-                and optional_arg is None
-                and has_bititle
-            ):
+            if command_name != "title" and optional_arg is None and has_bititle:
                 issues.append(
                     LintIssue(
                         path=path,
@@ -568,14 +276,11 @@ def lint_file(path: Path) -> list[LintIssue]:
                     path=path,
                     line=line,
                     kind="bare-math-macro",
-                    message=(
-                        rf"annsummary 里出现裸数学宏 \{command_name}；必须包进 $...$。"
-                    ),
+                    message=rf"annsummary 里出现裸数学宏 \{command_name}；必须包进 $...$。",
                 )
             )
 
     issues.extend(lint_moving_arguments(path, text))
-
     return issues
 
 
@@ -587,53 +292,25 @@ def collect_tex_files(workspace: Path) -> list[Path]:
         and path.name != PREAMBLE_FILE_NAME
         and path.name not in GENERATED_ENTRY_FILE_NAMES
         and not any(
-            part in LEGACY_GENERATED_DIR_NAMES
+            part in LEGACY_GENERATED_DIR_NAMES or part in STALE_GENERATED_DIR_NAMES
             for part in path.relative_to(workspace).parts
         )
     )
 
 
-def lint_workspace(workspace: Path) -> tuple[list[LintIssue], int]:
+def lint_workspace(workspace: Path, *, tex_file: Path | None = None) -> LintResult:
     issues: list[LintIssue] = []
-    tex_files = collect_tex_files(workspace)
-    for tex_path in tex_files:
-        issues.extend(lint_file(tex_path))
+    tex_files = [tex_file] if tex_file is not None else collect_tex_files(workspace)
+    for path in tex_files:
+        issues.extend(lint_file(path))
     issues.sort(key=lambda item: (str(item.path), item.line, item.kind, item.message))
-    return issues, len(tex_files)
+    return LintResult(
+        workspace=workspace,
+        checked_files=tuple(tex_files),
+        issues=tuple(issues),
+    )
 
 
 def format_issue(issue: LintIssue, workspace: Path) -> str:
     relative_path = issue.path.relative_to(workspace).as_posix()
     return f"{relative_path}:{issue.line}: [{issue.kind}] {issue.message}"
-
-
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Lint annotation-specific TeX issues before compiling the paper."
-    )
-    parser.add_argument("workspace", help="Paper workspace directory.")
-    return parser.parse_args()
-
-
-def main() -> int:
-    args = parse_args()
-    workspace = Path(args.workspace).resolve()
-    if not workspace.is_dir():
-        raise NotADirectoryError(f"Workspace does not exist: {workspace}")
-
-    issues, checked_files = lint_workspace(workspace)
-    print(f"workspace: {workspace}")
-    print(f"checked_files: {checked_files}")
-    if issues:
-        print("issues:")
-        for issue in issues:
-            print(f"  - {format_issue(issue, workspace)}")
-        print("status: failed")
-        return 1
-
-    print("status: clean")
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())

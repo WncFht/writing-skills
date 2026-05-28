@@ -1,0 +1,57 @@
+# OS / editor noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Python caches and local envs
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.python-version
+.venv/
+venv/
+env/
+ENV/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# Local secrets / machine-specific config
+.env
+.env.*
+
+# paper-note-skill default workspace and runtime outputs
+paper/
+.paper_note_visual_check/
+paper_note_annotations.tex
+paper_note_bilingual.tex
+paper_note_english.tex
+paper_note_english_clean.tex
+paper_note_chinese.tex
+paper_note_zh/
+source.tar
+*.paper-note-build.log
+
+# LaTeX intermediates
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.fdb_latexmk
+*.fls
+*.lof
+*.loc
+*.log
+*.lot
+*.nav
+*.out
+*.run.xml
+*.snm
+*.synctex.gz
+*.toc
+*.vrb
+*.xdv
+
+# Intentionally keep versioned demo assets such as assets/*.pdf and examples/*.png

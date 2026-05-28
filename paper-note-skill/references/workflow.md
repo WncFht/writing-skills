@@ -35,7 +35,7 @@
 如果想一条命令直接跑完整工作流：
 
 ```bash
-python paper-note-skill/scripts/run_paper_note_pipeline.py <arxiv-id-or-url>
+python writing-skill/paper-note-skill/scripts/paper_note.py run <arxiv-id-or-url>
 ```
 
 它会顺序执行：
@@ -49,19 +49,19 @@ python paper-note-skill/scripts/run_paper_note_pipeline.py <arxiv-id-or-url>
 先拉源码：
 
 ```bash
-python paper-note-skill/scripts/fetch_arxiv_source.py <arxiv-id-or-url>
+python writing-skill/paper-note-skill/scripts/paper_note.py fetch <arxiv-id-or-url>
 ```
 
 再初始化：
 
 ```bash
-python paper-note-skill/scripts/setup_paper_workspace.py <workspace>
+python writing-skill/paper-note-skill/scripts/paper_note.py setup <workspace>
 ```
 
 如果默认就不想显示 `\pnote`：
 
 ```bash
-python paper-note-skill/scripts/setup_paper_workspace.py <workspace> --notes off
+python writing-skill/paper-note-skill/scripts/paper_note.py setup <workspace> --notes off
 ```
 
 初始化脚本会：
@@ -69,7 +69,6 @@ python paper-note-skill/scripts/setup_paper_workspace.py <workspace> --notes off
 - 检测主入口
 - 写入共享宏文件 `paper_note_annotations.tex`
 - 生成唯一编译入口 `paper_note_bilingual.tex`
-- 升级旧的 `\annnote{...}{...}{译}{评}` 和三参数 `\pnote`
 - 在 `--force` 时清理旧的双 PDF 产物
 - 为中文逐句部分提供和英文功能宏一一对应的着色宏
 - 提供安全双语标题宏，避免中文直接进入 `.aux` / 书签
@@ -82,27 +81,33 @@ python paper-note-skill/scripts/setup_paper_workspace.py <workspace> --notes off
 预检：
 
 ```bash
-python paper-note-skill/scripts/lint_annotations.py <workspace>
-python paper-note-skill/scripts/build_paper_pdf.py --quick <workspace>
+python writing-skill/paper-note-skill/scripts/paper_note.py lint <workspace>
+python writing-skill/paper-note-skill/scripts/paper_note.py build <workspace> --quick
 ```
 
 正式编译：
 
 ```bash
-python paper-note-skill/scripts/build_paper_pdf.py <workspace>
+python writing-skill/paper-note-skill/scripts/paper_note.py build <workspace>
 ```
 
 如果入口文件需要强制和当前主文档重新同步：
 
 ```bash
-python paper-note-skill/scripts/build_paper_pdf.py <workspace> --refresh-entry
+python writing-skill/paper-note-skill/scripts/paper_note.py build <workspace> --refresh-entry
 ```
 
-正式编译后，脚本会附带输出视觉检查摘要：
+正式编译后，再单独跑视觉检查：
+
+```bash
+python writing-skill/paper-note-skill/scripts/paper_note.py visual-check <workspace> --pdf paper_note_bilingual.pdf
+```
+
+视觉检查会：
 
 - 渲染前几页 PNG 预览到 `.paper_note_visual_check/`
 - 扫描源码里的 `wrapfigure` / `wraptable`
-- 给出 `visual_check_status`、`visual_check_note` 和风险列表
+- 给出 `status`、`note` 和风险列表
 
 如果当前编译目标是 `paper_note_bilingual.tex`，而且原始主文档比入口文件更新，编译脚本也会自动先刷新入口，再继续 lint 和 build。
 
@@ -131,7 +136,13 @@ python paper-note-skill/scripts/build_paper_pdf.py <workspace> --refresh-entry
 如需显式指定：
 
 ```bash
-python paper-note-skill/scripts/build_paper_pdf.py <workspace> --tex paper_note_bilingual.tex
+python writing-skill/paper-note-skill/scripts/paper_note.py build <workspace> --tex paper_note_bilingual.tex
+```
+
+如果先想检查本机依赖和 workspace 前提：
+
+```bash
+python writing-skill/paper-note-skill/scripts/paper_note.py doctor --workspace <workspace>
 ```
 
 ## 该读哪些 reference

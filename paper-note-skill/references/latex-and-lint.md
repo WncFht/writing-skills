@@ -58,7 +58,7 @@
 
 ## lint 应拦的内容
 
-`lint_annotations.py` 至少会检查：
+`paper_note.py lint` 至少会检查：
 
 - `\annote{...}`
 - 旧的 `\annnote{...}`
@@ -84,14 +84,14 @@ lint 会直接跳过 bibliography-like 文件或内容块，例如：
 推荐先做预检：
 
 ```bash
-python paper-note-skill/scripts/lint_annotations.py <workspace>
-python paper-note-skill/scripts/build_paper_pdf.py --quick <workspace>
+python writing-skill/paper-note-skill/scripts/paper_note.py lint <workspace>
+python writing-skill/paper-note-skill/scripts/paper_note.py build <workspace> --quick
 ```
 
 如果不想手动串这些步骤，可以直接跑：
 
 ```bash
-python paper-note-skill/scripts/run_paper_note_pipeline.py <arxiv-id-or-url>
+python writing-skill/paper-note-skill/scripts/paper_note.py run <arxiv-id-or-url>
 ```
 
 默认编译链：
@@ -103,7 +103,7 @@ python paper-note-skill/scripts/run_paper_note_pipeline.py <arxiv-id-or-url>
 - 也可以显式要求在编译前重生入口：
 
 ```bash
-python paper-note-skill/scripts/build_paper_pdf.py <workspace> --refresh-entry
+python writing-skill/paper-note-skill/scripts/paper_note.py build <workspace> --refresh-entry
 ```
 
 ## 兼容性
@@ -112,5 +112,11 @@ python paper-note-skill/scripts/build_paper_pdf.py <workspace> --refresh-entry
 - 编译脚本会输出 `warning_summary`，只保留值得人工看的短警告摘要。
 - 如果出现 fatal，编译脚本会额外输出 `fatal_kind` 和 `fatal_advice`，优先把错误归类到 “裸数学宏” 或 “moving-argument Unicode”。
 - 当 fatal 看起来来自旧 `.aux` / 书签状态时，编译脚本会自动清理目标入口对应的 `.aux` 后重试一次。
-- 正式编译后，编译脚本还会输出 `visual_check_*` 摘要，并在 `.paper_note_visual_check/` 下生成前几页预览图。
+- 视觉检查现在由独立命令负责：
+
+```bash
+python writing-skill/paper-note-skill/scripts/paper_note.py visual-check <workspace> --pdf paper_note_bilingual.pdf
+```
+
+- 视觉检查会在 `.paper_note_visual_check/` 下生成前几页预览图。
 - `wrapfigure` / `wraptable` 在双语 inline 展开后是高风险环境；一旦预览图出现挤压、重叠或段落错位，优先回退到普通 `figure` / `table`。

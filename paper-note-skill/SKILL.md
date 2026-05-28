@@ -31,7 +31,7 @@ description: Pull an arXiv LaTeX source paper into the default paper workspace, 
 ### 0. 一键跑完整链路
 
 ```bash
-python paper-note-skill/scripts/run_paper_note_pipeline.py <arxiv-id-or-url>
+python writing-skill/paper-note-skill/scripts/paper_note.py run <arxiv-id-or-url>
 ```
 
 默认会串起来执行：
@@ -46,25 +46,25 @@ python paper-note-skill/scripts/run_paper_note_pipeline.py <arxiv-id-or-url>
 如果只想先停在 quick build：
 
 ```bash
-python paper-note-skill/scripts/run_paper_note_pipeline.py <arxiv-id-or-url> --skip-full-build
+python writing-skill/paper-note-skill/scripts/paper_note.py run <arxiv-id-or-url> --skip-full-build
 ```
 
 ### 1. 拉源码
 
 ```bash
-python paper-note-skill/scripts/fetch_arxiv_source.py <arxiv-id-or-url>
+python writing-skill/paper-note-skill/scripts/paper_note.py fetch <arxiv-id-or-url>
 ```
 
 ### 2. 初始化双语批注支持
 
 ```bash
-python paper-note-skill/scripts/setup_paper_workspace.py <workspace>
+python writing-skill/paper-note-skill/scripts/paper_note.py setup <workspace>
 ```
 
 如果默认就不想显示 `\pnote`：
 
 ```bash
-python paper-note-skill/scripts/setup_paper_workspace.py <workspace> --notes off
+python writing-skill/paper-note-skill/scripts/paper_note.py setup <workspace> --notes off
 ```
 
 ### 3. 按规则批注与翻译
@@ -82,29 +82,41 @@ python paper-note-skill/scripts/setup_paper_workspace.py <workspace> --notes off
 ### 4. 编译 PDF
 
 ```bash
-python paper-note-skill/scripts/lint_annotations.py <workspace>
-python paper-note-skill/scripts/build_paper_pdf.py --quick <workspace>
+python writing-skill/paper-note-skill/scripts/paper_note.py lint <workspace>
+python writing-skill/paper-note-skill/scripts/paper_note.py build <workspace> --quick
 ```
 
 ```bash
-python paper-note-skill/scripts/build_paper_pdf.py <workspace>
+python writing-skill/paper-note-skill/scripts/paper_note.py build <workspace>
 ```
 
 默认只编：
 
 ```bash
-python paper-note-skill/scripts/build_paper_pdf.py <workspace> --tex paper_note_bilingual.tex
+python writing-skill/paper-note-skill/scripts/paper_note.py build <workspace> --tex paper_note_bilingual.tex
 ```
 
 如果主文档改过，想在编译前强制重生入口：
 
 ```bash
-python paper-note-skill/scripts/build_paper_pdf.py <workspace> --refresh-entry
+python writing-skill/paper-note-skill/scripts/paper_note.py build <workspace> --refresh-entry
 ```
 
 如果目标就是 `paper_note_bilingual.tex`，编译脚本也会在发现原始主文档更新后自动刷新入口。
 
-正式编译后，默认还要看脚本输出的 `visual_check_*` 字段。若出现 `wrapfigure` / `wraptable` 风险或预览页异常，就先修排版再继续批注。
+正式编译后，再单独跑视觉检查：
+
+```bash
+python writing-skill/paper-note-skill/scripts/paper_note.py visual-check <workspace> --pdf paper_note_bilingual.pdf
+```
+
+如果出现 `wrapfigure` / `wraptable` 风险或预览页异常，就先修排版再继续批注。
+
+如果先想检查本机依赖和 workspace 前提：
+
+```bash
+python writing-skill/paper-note-skill/scripts/paper_note.py doctor --workspace <workspace>
+```
 
 ## 输出要求
 
