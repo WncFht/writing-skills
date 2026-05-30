@@ -4,7 +4,10 @@ import json
 import shutil
 from pathlib import Path
 
-DEFAULT_PAPER_ROOT = Path(__file__).resolve().parents[3] / "paper"
+from core.user_config import OUTPUT_ROOT_ENV_VAR, resolve_output_root
+
+REPO_ROOT = Path(__file__).resolve().parents[4]
+DEFAULT_PAPER_ROOT_FALLBACK = REPO_ROOT / "paper"
 PREAMBLE_FILE_NAME = "paper_note_annotations.tex"
 ENTRY_FILE_NAME = "paper_note_bilingual.tex"
 STALE_GENERATED_FILE_NAMES = (
@@ -14,6 +17,12 @@ STALE_GENERATED_FILE_NAMES = (
 )
 STALE_GENERATED_DIR_NAMES = ("paper_note_zh",)
 GENERATED_ENTRY_FILE_NAMES = (ENTRY_FILE_NAME,)
+
+DEFAULT_PAPER_ROOT_ENV_VAR = OUTPUT_ROOT_ENV_VAR
+DEFAULT_PAPER_ROOT = resolve_output_root(
+    repo_root=REPO_ROOT,
+    fallback_root=DEFAULT_PAPER_ROOT_FALLBACK,
+).root
 
 
 def resolve_existing_directory(raw_path: str, *, label: str) -> Path:

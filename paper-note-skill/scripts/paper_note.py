@@ -4,7 +4,7 @@ from __future__ import annotations
 import argparse
 from typing import Callable
 
-from commands import build, doctor, fetch, lint, run, setup, visual_check
+from commands import build, config, doctor, fetch, lint, run, setup, visual_check
 
 COMMAND_DESCRIPTION = (
     "Unified CLI for the paper-note workflow: fetch source, prepare the workspace, "
@@ -31,6 +31,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="paper-note", description=COMMAND_DESCRIPTION)
     subparsers = parser.add_subparsers(dest="command", required=True)
 
+    register_subcommand(
+        subparsers,
+        name=config.COMMAND_NAME,
+        description=config.COMMAND_DESCRIPTION,
+        configure=config.configure_parser,
+        handler=config.run_from_args,
+    )
     register_subcommand(
         subparsers,
         name=fetch.COMMAND_NAME,

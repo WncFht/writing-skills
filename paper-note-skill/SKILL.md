@@ -49,6 +49,19 @@ python writing-skill/paper-note-skill/scripts/paper_note.py run <arxiv-id-or-url
 python writing-skill/paper-note-skill/scripts/paper_note.py run <arxiv-id-or-url> --skip-full-build
 ```
 
+默认工作区根目录会按以下顺序解析：
+
+- 显式 `--root`
+- 环境变量 `PAPER_NOTE_OUTPUT_ROOT`
+- `~/.paper-note-skill/config.yaml`
+- 仓库根目录下的 `paper/`
+
+如果想交互式设置默认输出目录：
+
+```bash
+python writing-skill/paper-note-skill/scripts/paper_note.py config
+```
+
 ### 1. 拉源码
 
 ```bash
